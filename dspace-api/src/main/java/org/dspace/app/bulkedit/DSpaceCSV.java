@@ -60,6 +60,10 @@ public class DSpaceCSV implements Serializable
     /** A list of metadata elements to ignore */
     private Map<String, String> ignore;
 
+    /** GB: Whether to include primary bitstream URL in CSV file */
+    private static final String PRIMARY_BITSTREAM_URL="Primary Bitstream URL";
+    private boolean includePrimaryBitstreamURL;
+
 
     /**
      * Create a new instance of a CSV line holder
@@ -252,6 +256,9 @@ public class DSpaceCSV implements Serializable
                 ignore.put(toIgnoreString.trim(), toIgnoreString.trim());
             }
         }
+
+	// GB
+	includePrimaryBitstreamURL = true;
     }
 
     /**
@@ -397,6 +404,27 @@ public class DSpaceCSV implements Serializable
                 }
             }
         }
+	// GB
+	if(includePrimaryBitstreamURL){
+		// Generate URL
+		String dspaceUrl = ConfigurationManager.getProperty("dspace.url");
+		String handle = i.getHandle();
+		Bundle[] bundles = i.getBundles("ORIGINAL");			
+		int sequenceId = 1;
+		String filename = "";
+		for( Bundle bundle: bundles ){
+			Bitstream[] bitstreams = bundle.getBitstreams();
+			for( Bitstream bitstream: bitstreams ){
+				if(bundle.getPrimaryBitstreamID()==bitstream.getID()){
+					sequenceId = bitstream.getSequenceID();	
+					filename = bitstream.getName();
+					break;
+				}
+			}
+		}
+		String url = dspaceUrl + "/bitstream/" + handle + "/" + sequenceId + "/" + filename;	
+		line.add(PRIMARY_BITSTREAM_URL, url);
+	}
         lines.add(line);
         counter++;
     }
@@ -551,7 +579,8 @@ public class DSpaceCSV implements Serializable
         csvLines[0] = "id" + fieldSeparator + "collection";
         Collections.sort(headings);
 	// GB
-	headings.add("Primary Bistream URL");
+	if(includePrimaryBitstreamURL)
+		headings.add(PRIMARY_BITSTREAM_URL);
         for (String value : headings)
         {
             csvLines[0] = csvLines[0] + fieldSeparator + value;
